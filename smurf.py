@@ -3,7 +3,7 @@ from discord.ext import commands
 
 startup_extensions = ['ffxiv']
 
-bot = commands.Bot(command_prefix=">", description="Smurf is an MMORPG Guild/Raid management focused Discord bot.")
+bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Raid management focused Discord bot.")
 
 
 @bot.command()

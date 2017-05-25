@@ -1,10 +1,21 @@
+import json
+import aiomysql
 import discord
 from discord.ext import commands
 
 startup_extensions = ['ffxiv']
 
 bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Raid management focused Discord bot.")
+settings = json.load(open('settings.json', 'r'))
 
+async def sql_setup(bot):
+    bot.sql = await aiomysql.create_pool(
+        host="localhost", port=3306,
+        user=settings['sql']['user'],
+        password=settings['sql']['pass'],
+        db=settings['sql']['dbname'],
+        loop=bot.loop
+    )
 
 @bot.command()
 async def load(ctx, what: str):
@@ -47,5 +58,7 @@ async def on_ready():
 if __name__ == "__main__":
     for ext in startup_extensions:
         bot.load_extension(ext)
+        
+    bot.loop.run_until_complete(sql_setup(bot))
 
     bot.run("")

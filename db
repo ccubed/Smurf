@@ -1,0 +1,25 @@
+#Raids table
+id int auto_increment index
+guild_id int
+name text
+party_size int
+when datetime
+offset double
+
+# Player settings table
+id int unique index
+offset double
+ffxiv text
+wow text
+eve text
+bdo text
+gw2 text
+
+# Guild Settings table
+id int unique index 
+offset double
+ffxiv text
+wow text
+eve text
+bdo text
+gw2 text

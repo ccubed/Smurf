@@ -1,31 +1,37 @@
+import asyncio
 import json
 import aiomysql
 import discord
 from discord.ext import commands
 
-startup_extensions = ['ffxiv']
+startup_extensions = ['ffxiv', 'scheduler']
 
 bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Raid management focused Discord bot.")
 settings = json.load(open('settings.json', 'r'))
 
+
 async def sql_setup(bot):
     bot.sql = await aiomysql.create_pool(
-        host="localhost", port=3306,
+        host="192.168.1.110", port=3306,
         user=settings['sql']['user'],
         password=settings['sql']['pass'],
         db=settings['sql']['dbname'],
         loop=bot.loop
     )
 
+
 @bot.command()
 async def load(ctx, what: str):
     """Load a Module"""
-    await ctx.message.edit(content="Loading {}...".format(what))
+    msg = await ctx.send("Loading {}...".format(what))
     try:
         bot.load_extension(what)
-        await ctx.message.edit(content="Loaded {}.".format(what))
+        await msg.edit(content="Loaded {}.".format(what))
     except ImportError as e:
-        await ctx.message.delete()
+        await msg.edit(content="Failed to load {}.".format(what))
+    finally:
+        await asyncio.sleep(3)
+        await msg.delete()
 
 
 @bot.command()
@@ -38,7 +44,6 @@ async def unload(ctx, what: str):
 @bot.command()
 async def kill(ctx):
     """Kill the Bot"""
-    await ctx.message.delete()
     await bot.logout()
 
 
@@ -50,6 +55,17 @@ async def status(ctx, what: str):
         await bot.change_presence(game=discord.Game(name=what))
 
 
+@bot.command()
+async def whut(ctx, what: str):
+    """eval some code"""
+    try:
+        result = eval(what, globals(), locals())
+    except BaseException as e:
+        await ctx.send("Encountered an Exception.")
+    else:
+        await ctx.send(result)
+
+
 @bot.event
 async def on_ready():
     print("Bot Ready to process commands\nLogged in as: {}".format(bot.user.name))
@@ -58,7 +74,7 @@ async def on_ready():
 if __name__ == "__main__":
     for ext in startup_extensions:
         bot.load_extension(ext)
-        
+
     bot.loop.run_until_complete(sql_setup(bot))
 
-    bot.run("")
+    bot.run("MzE3NDY5OTg0Njc2OTA0OTYy.DAkSfA.jklWH8CjObkYqOyG5_XGsNK5LMg")

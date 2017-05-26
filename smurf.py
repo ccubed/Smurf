@@ -38,12 +38,13 @@ async def load(ctx, what: str):
 async def unload(ctx, what: str):
     """Unload Modules"""
     bot.unload_extension(what)
-    await ctx.message.delete()
 
 
 @bot.command()
 async def kill(ctx):
     """Kill the Bot"""
+    bot.sql.close()
+    await bot.sql.wait_closed()
     await bot.logout()
 
 

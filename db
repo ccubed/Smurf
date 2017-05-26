@@ -1,14 +1,16 @@
 #Raids table
 id int auto_increment index
 guild_id int
-name text
+game text
+raid text
 party_size int
-when datetime
-offset double
+full bool
+scheduled datetime
+timezone double
 
 # Player settings table
 id int unique index
-offset double
+timezone double
 ffxiv text
 wow text
 eve text
@@ -17,7 +19,7 @@ gw2 text
 
 # Guild Settings table
 id int unique index 
-offset double
+timezone double
 ffxiv text
 wow text
 eve text

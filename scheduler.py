@@ -20,11 +20,56 @@ class Scheduler:
                                            check=lambda m: m.author == ctx.author and m.channel == destination)
 
         return resp
+        
+    async def calc_offset(timestamp, timezone, ctx):
+        offset = None
+        async with self.bot.sql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT timezone FROM Players WHERE id={}".format(ctx.author.id))
+                if cur.rowcount:
+                    offset = await cur.fetchone()[0]
+                else:
+                    await cur.execute("SELECT timezone FROM Guilds WHERE id={}".format(ctx.guild.id))
+                    if cur.rowcount:
+                        offset = await cur.fetchone()[0]
+        if offset:
+            # make our datetime objects
+            initial = datetime.datetime(
+                year=timestamp.split()[0].split("-")[0],
+                month=timestamp.split()[0].split("-")[1],
+                day=timestamp.split()[0].split("-")[2],
+                hour=timestamp.split()[1].split(":")[0],
+                minute=timestamp.split()[1].split(":")[1],
+                tzinfo=datetime.timedelta(hours=timezone)
+                )
+            final = intial.astimezone(datetime.timedelta(hours=offset))
+            return "{}-{}-{} {}:{}:00".format(final.year, final.month, final.day, final.hour, final.minute)
+        else:
+            return timestamp
+        
 
-    @commands.group()
+    @commands.group(invoke_without_command=True)
     async def raid(self, ctx):
-        pass
-
+        results = None
+        async with self.bot.sql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT * FROM Raids WHERE guild_id={} ORDER BY game".format(ctx.guild.id))
+                results = await cur.fetchall()
+        
+        emff = discord.Embed(description="Raids and Events for Final Fantasy 14 in your guild.")
+        emff.title = "Final Fantasy 14"
+        
+        for result in [x for x in results if x[1] == "FF14"]:
+            real_time = await calc_offset(result[4], result[5], ctx)
+            emff.add_field(
+                name=result[2],
+                value="Party Size: {}\nScheduled: {}\Full: {}".format(
+                    list(self.games[result[1]].parties.keys())[result[3]],
+                    real_time,
+                    "Yes" if result[] else "No"
+                    )
+                )
+                
     @raid.command()
     async def schedule(self, ctx, pm: bool = False):
         game, raid, party, date, time, timezone = None, None, None, None, None, None
@@ -123,8 +168,8 @@ class Scheduler:
 
             async with self.bot.sql.acquire() as conn:
                 async with conn.cursor() as cur:
-                    statement = "INSERT INTO Raids (guild_id, raid, party_size, scheduled, timezone) VALUES ('{}','{}','{}','{}','{}')".format(
-                        ctx.guild.id, raid, party, timestamp, timezone)
+                    statement = "INSERT INTO Raids (guild_id, game, raid, party_size, scheduled, timezone) VALUES ('{}', '{}', {}','{}','{}','{}')".format(
+                        ctx.guild.id, game, raid, party, timestamp, timezone)
                     await cur.execute(statement)
                     await conn.commit()
 
@@ -136,11 +181,6 @@ class Scheduler:
                 timezone
             )
             await ctx.send(embed=em)
-
-    @raid.command()
-    async def raids(self, ctx, full: bool = False):
-        # display a list of raids, omitting full by default, for this server
-        pass
 
     @raid.command()
     async def signup(self, ctx):

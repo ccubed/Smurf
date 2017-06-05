@@ -10,13 +10,13 @@ bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Ra
 settings = json.load(open('settings.json', 'r'))
 
 
-async def sql_setup(bot):
-    bot.sql = await aiomysql.create_pool(
+async def sql_setup(botto):
+    botto.sql = await aiomysql.create_pool(
         host="192.168.1.110", port=3306,
         user=settings['sql']['user'],
         password=settings['sql']['pass'],
         db=settings['sql']['dbname'],
-        loop=bot.loop
+        loop=botto.loop
     )
 
 
@@ -38,7 +38,7 @@ async def load(ctx, what: str):
 async def unload(ctx, what: str):
     """Unload Modules"""
     bot.unload_extension(what)
-    await ctx.message.delete()
+    await ctx.send("Unloaded {}".format(what))
 
 
 @bot.command()
@@ -77,4 +77,4 @@ if __name__ == "__main__":
 
     bot.loop.run_until_complete(sql_setup(bot))
 
-    bot.run("MzE3NDY5OTg0Njc2OTA0OTYy.DAkSfA.jklWH8CjObkYqOyG5_XGsNK5LMg")
+    bot.run(settings['token'])

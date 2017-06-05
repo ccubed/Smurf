@@ -42,6 +42,7 @@ class Scheduler:
         else:
             return "{} {}".format(timestamp, datetime.timezone(datetime.timedelta(hours=timezone)).tzname(None))
 
+
     @commands.group(invoke_without_command=True)
     async def raid(self, ctx):
         results = None

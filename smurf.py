@@ -38,10 +38,7 @@ async def load(ctx, what: str):
 async def unload(ctx, what: str):
     """Unload Modules"""
     bot.unload_extension(what)
-<<<<<<< HEAD
     await ctx.send("Unloaded {}".format(what))
-=======
->>>>>>> 50a40c992e00b21cbfe80bf99d1db149133bf2fb
 
 
 @bot.command()

@@ -70,7 +70,7 @@ async def whut(ctx, what: str):
 
 @bot.event
 async def on_ready():
-    print("Bot Ready to process commands\nLogged in as: {}".format(bot.user.name))
+    pass
 
 
 if __name__ == "__main__":

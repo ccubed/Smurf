@@ -4,7 +4,8 @@ from discord.ext import commands
 class Ffxiv():
     def __init__(self, bot):
         self.bot = bot
-        self.parties = {'Light': {'DPS':2, 'TANK': 1, 'HEALER': 1}, 'Full': {'DPS': 4, 'TANK': 2, 'HEALER': 2}, 'Raid': {'DPS': 12, 'TANK': 6, 'HEALERS': 6}}
+        self.parties = {'Light': {'dps': 2, 'tank': 1, 'healer': 1}, 'Full': {'dps': 4, 'tank': 2, 'healer': 2}, 'Raid': {'dps': 12, 'tank': 6, 'healer': 6}}
+        self.roles = ['dps', 'tank', 'healer']
         
 def setup(bot):
     bot.add_cog(Ffxiv(bot))

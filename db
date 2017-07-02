@@ -1,27 +1,37 @@
-#Raids table
-id int auto_increment index
-guild_id int
+#Guilds
+id bigint
+timezone double
+ffxiv text
+wow text
+eve text
+bdo text
+gw2 text
+
+#Players
+id bigint
+timezone double
+ffxiv text
+wow text
+eve text
+bdo text
+gw2 text
+
+#Raids
+id int auto_increment
+guild_id bigint
 game text
 raid text
 party_size int
-full bool
 scheduled datetime
 timezone double
+filled tinyint (this is basically a bool)
 
-# Player settings table
-id int unique index
-timezone double
-ffxiv text
-wow text
-eve text
-bdo text
-gw2 text
+#Roles
+guild_id bigint
+member_id bigint
+roles longtext
 
-# Guild Settings table
-id int unique index 
-timezone double
-ffxiv text
-wow text
-eve text
-bdo text
-gw2 text
+#Signups
+player_id bigint
+raid_id int
+role text

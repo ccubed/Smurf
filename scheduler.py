@@ -9,7 +9,30 @@ class Scheduler:
     def __init__(self, bot):
         self.bot = bot
         self.games = {'FF14': bot.get_cog('Ffxiv')}
-        print(self.games)
+        self.bot.loop.create_task(self.do_notifications())
+
+    async def do_notifications(self):
+        await self.bot.wait_until_ready()
+        while not self.bot.is_closed():
+            async with self.bot.sql.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        "SELECT * FROM Raids WHERE DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 HOUR) > IF(timezone > 0, DATE_SUB(scheduled, INTERVAL timezone HOUR), DATE_ADD(scheduled, INTERVAL ABS(timezone) HOUR))")
+                    if cur.rowcount:
+                        results = await cur.fetchall()
+                        for raid in results:
+                            guild = self.bot.get_guild(raid[1])
+                            await cur.execute("SELECT * FROM Signups WHERE raid_id = {}".format(raid[0]))
+                            people = await cur.fetchall()
+                            for person in people:
+                                if not person[5]:
+                                    await guild.get_member(person[0]).send(
+                                        "You are signed up for {} in {} set for {} {}{}".format(raid[3], raid[2], raid[5],
+                                                                                                datetime.timezone(datetime.timedelta(hours=raid[6])).tzname(None),
+                                                                                                "as a backup." if person[3] else "."))
+                                    await cur.execute("UPDATE Signups SET reminded = 1 WHERE player_id = {} AND raid_id = {}".format(person[0], raid[0]))
+                                    await conn.commit()
+            await asyncio.sleep(600)
 
     async def get_response(self, ctx, destination):
         resp = await self.bot.wait_for('message',
@@ -44,16 +67,19 @@ class Scheduler:
             return "{} {}".format(timestamp, datetime.timezone(datetime.timedelta(hours=timezone)).tzname(None))
 
     async def check_full(self, ctx, raid_info):
-        roles_needed = self.games[raid_info[2]].parties[self.games[raid_info[2]].parties.keys()[raid_info[4]]]
+        roles_needed = self.games[raid_info[2]].parties[
+            sorted(list(self.games[raid_info[2]].parties.keys()))[raid_info[4]]]
         current_roles = []
         async with self.bot.sql.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT role FROM Signups WHERE raid_id = {}".format(raid_info[0]))
                 if cur.rowcount:
                     current_roles = await cur.fetchall()
+
         for rname in roles_needed.keys():
-            if len([x for x in current_roles if x.lower() == rname]) < roles_needed[rname]:
+            if len([x[0] for x in current_roles if x[0].lower() == rname]) < roles_needed[rname]:
                 return
+
         async with self.bot.sql.acquire() as conn:
             async with conn.cursor() as cur:
                 statement = "SELECT player_id, notify FROM Signups WHERE raid_id = {}".format(raid_info[0])
@@ -66,9 +92,11 @@ class Scheduler:
                                 raid_info[3], raid_info[5],
                                 datetime.timezone(datetime.timedelta(hours=raid_info[6])).tzname(None)))
                         await cur.execute("UPDATE Signups SET notify = 1 WHERE player_id = {}".format(person[0]))
+                        await conn.commit()
                 if not raid_info[7]:
                     statement = "UPDATE Raids SET filled = 1 WHERE id = {}".format(raid_info[0])
                     await cur.execute(statement)
+                    await conn.commit()
 
     @commands.group(invoke_without_command=True)
     async def raid(self, ctx):
@@ -79,6 +107,10 @@ class Scheduler:
                 results = await cur.fetchall()
 
         game_list = set([x[2] for x in results])
+
+        if not game_list:
+            await ctx.send("There are no raids scheduled for your guild.")
+            return
 
         for game in game_list:
             async with ctx.channel.typing():
@@ -125,7 +157,7 @@ class Scheduler:
             em.clear_fields()
             em.title = "Select Party Type Required"
             em.description = "Enter the ID for the party type required for this activity."
-            for idx, name in enumerate(self.games[game].parties.keys()):
+            for idx, name in enumerate(sorted(list(self.games[game].parties.keys()))):
                 em.add_field(name=name, value="ID: {}".format(idx))
             await ctx.send(embed=em)
 
@@ -214,8 +246,14 @@ class Scheduler:
                     await ctx.send("Couldn't find that raid.")
                     return
 
-        print(results)
-        # I think it's a list
+        async with self.bot.sql.acquire() as cur:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT * FROM Signups WHERE player_id = {} and raid_id = {}".format(ctx.author.id, rid))
+                if cur.rowcount:
+                    await ctx.send("You're already signed up for this raid. Did you mean to withdraw?")
+                    return
+
         results = results[0]
 
         if role.lower() not in self.games[results[2]].roles:
@@ -232,22 +270,25 @@ class Scheduler:
                     current_roles = await cur.fetchall()
 
         if current_roles:
-            if (len([x for x in current_roles if x.lower() == role.lower()]) + 1) <= \
-                    self.games[results[2]].parties[self.games[results[2]].parties.keys()[results[4]]][role.lower()]:
+            if (len([x[0] for x in current_roles if x[0].lower() == role.lower()]) + 1) <= \
+                    self.games[results[2]].parties[sorted(list(self.games[results[2]].parties.keys()))[results[4]]][
+                        role.lower()]:
                 async with self.bot.sql.acquire() as conn:
                     async with conn.cursor() as cur:
-                        statement = "INSERT INTO Signups (player_id, raid_id, role) VALUES ('{}','{}', '{}')"
-                        statement.format(ctx.authord.id, rid, role.lower())
+                        statement = "INSERT INTO Signups (player_id, raid_id, role) VALUES ('{}', '{}', '{}')"
+                        statement = statement.format(ctx.author.id, rid, role.lower())
                         await cur.execute(statement)
+                        await conn.commit()
                         await ctx.send("Signed up {} for {} on {} {}".format(ctx.author.mention, results[3], results[5],
                                                                              datetime.timezone(datetime.timedelta(
                                                                                  hours=results[6])).tzname(None)))
             else:
                 async with self.bot.sql.acquire() as conn:
                     async with conn.cursor() as cur:
-                        statement = "INSERT INTO Signups (player_id, raid_id, role, backup) VALUES ('{}','{}', '{}', '{}')"
-                        statement.format(ctx.authord.id, rid, role.lower(), 1)
+                        statement = "INSERT INTO Signups (player_id, raid_id, role, backup) VALUES ('{}', '{}', '{}', '{}')"
+                        statement = statement.format(ctx.author.id, rid, role.lower(), 1)
                         await cur.execute(statement)
+                        await conn.commit()
                         await ctx.send(
                             "Signed up {} for {} on {} {} as a backup.".format(ctx.author.mention, results[3],
                                                                                results[5],
@@ -257,8 +298,9 @@ class Scheduler:
             async with self.bot.sql.acquire() as conn:
                 async with conn.cursor() as cur:
                     statement = "INSERT INTO Signups (player_id, raid_id, role) VALUES ('{}', '{}', '{}')"
-                    statement.format(ctx.author.id, rid, role.lower())
+                    statement = statement.format(ctx.author.id, rid, role.lower())
                     await cur.execute(statement)
+                    await conn.commit()
                     await ctx.send("Signed up {} for {} on {} {}".format(ctx.author.mention, results[3], results[5],
                                                                          datetime.timezone(datetime.timedelta(
                                                                              hours=results[6])).tzname(None)))
@@ -304,6 +346,7 @@ class Scheduler:
 
         statement = "DELETE FROM Signups WHERE player_id = {} AND raid_id = {}".format(ctx.author.id, resp.content)
         await cur.execute(statement)
+        await conn.commit()
         await ctx.send(
             "{} - Removed you from {} which was set to occur on {} {}".format(ctx.author.mention, raids[3], raids[5],
                                                                               datetime.timezone(datetime.timedelta(

@@ -27,10 +27,18 @@ class Scheduler:
                             for person in people:
                                 if not person[5]:
                                     await guild.get_member(person[0]).send(
-                                        "You are signed up for {} in {} set for {} {}{}".format(raid[3], raid[2], raid[5],
-                                                                                                datetime.timezone(datetime.timedelta(hours=raid[6])).tzname(None),
-                                                                                                "as a backup." if person[3] else "."))
-                                    await cur.execute("UPDATE Signups SET reminded = 1 WHERE player_id = {} AND raid_id = {}".format(person[0], raid[0]))
+                                        "You are signed up for {} in {} set for {} {}{}".format(raid[3], raid[2],
+                                                                                                raid[5],
+                                                                                                datetime.timezone(
+                                                                                                    datetime.timedelta(
+                                                                                                        hours=raid[
+                                                                                                            6])).tzname(
+                                                                                                    None),
+                                                                                                "as a backup." if
+                                                                                                person[3] else "."))
+                                    await cur.execute(
+                                        "UPDATE Signups SET reminded = 1 WHERE player_id = {} AND raid_id = {}".format(
+                                            person[0], raid[0]))
                                     await conn.commit()
             await asyncio.sleep(600)
 
@@ -100,6 +108,9 @@ class Scheduler:
 
     @commands.group(invoke_without_command=True)
     async def raid(self, ctx):
+        """
+        Display a list of currently scheduled raids for this guild.
+        """
         results = None
         async with self.bot.sql.acquire() as conn:
             async with conn.cursor() as cur:
@@ -129,7 +140,78 @@ class Scheduler:
                 await ctx.send(embed=rem)
 
     @raid.command()
+    async def tz(self, ctx, offset: str):
+        """
+        Set your  player's default timezone.
+        :param offset: The offset as a name or number.
+        If using a name, see <https://gist.github.com/ccubed/1a9d671ffefb2b0b3a1f4b7c098b2b69>.
+        """
+        try:
+            timezone = float(offset)
+        except ValueError:
+            timezone = None
+
+        if not timezone:
+            if offset in pytz.all_timezones:
+                timezone = datetime.datetime.now(pytz.timezone(offset))
+                timezone = timezone.utcoffset().total_seconds() / 60 / 60
+            else:
+                await ctx.send(
+                    "I couldn't parse that timezone. Make sure it's either a number or one of PyTZ's accepted timezones.")
+                return
+
+        async with self.bot.sql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT * FROM Players WHERE id = {}".format(ctx.author.id))
+                if cur.rowcount:
+                    await cur.execute("UPDATE Players SET timezone = {} WHERE id = {}".format(timezone, ctx.author.id))
+                    await conn.commit()
+                else:
+                    await cur.execute(
+                        "INSERT INTO Players (id, timezone) VALUES ('{}', '{}')".format(ctx.author.id, timezone))
+                    await conn.commit()
+
+        await ctx.send("Set your timezone offset to {}".format(timezone))
+
+    @raid.command()
+    async def guildtz(self, ctx, offset: str):
+        """
+        Set your guild's default timezone.
+        :param offset: The offset as a name or number.
+        If using a name, see <https://gist.github.com/ccubed/1a9d671ffefb2b0b3a1f4b7c098b2b69>.
+        """
+        try:
+            timezone = float(offset)
+        except ValueError:
+            timezone = None
+
+        if not timezone:
+            if offset in pytz.all_timezones:
+                timezone = datetime.datetime.now(pytz.timezone(offset))
+                timezone = timezone.utcoffset().total_seconds() / 60 / 60
+            else:
+                await ctx.send(
+                    "I couldn't parse that timezone. Make sure it's either a number or one of PyTZ's accepted timezones.")
+                return
+
+        async with self.bot.sql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT * FROM Guilds WHERE id = {}".format(ctx.guild.id))
+                if cur.rowcount:
+                    await cur.execute("UPDATE Guilds SET timezone = {} WHERE id = {}".format(timezone, ctx.guild.id))
+                    await conn.commit()
+                else:
+                    await cur.execute(
+                        "INSERT INTO Guilds (id, timezone) VALUES ('{}', '{}')".format(ctx.guild.id, timezone))
+                    await conn.commit()
+
+        await ctx.send("Set your guild's timezone offset to {}".format(timezone))
+
+    @raid.command()
     async def schedule(self, ctx):
+        """
+        Schedule a new raid for this guild.
+        """
         game, raid, party, date, time, timezone = None, None, None, None, None, None
 
         async with ctx.channel.typing():
@@ -235,6 +317,12 @@ class Scheduler:
 
     @raid.command()
     async def signup(self, ctx, rid: int, role: str):
+        """
+        Signup for a raid that is currently scheduled in this guild.
+
+        :param rid: The ID of the raid as given in >>raid
+        :param role:  What role you'll fill in the raid
+        """
         results = None
         async with self.bot.sql.acquire() as conn:
             async with conn.cursor() as cur:
@@ -310,6 +398,9 @@ class Scheduler:
 
     @raid.command()
     async def withdraw(self, ctx):
+        """
+        Withdraw from a raid you have signed up for.
+        """
         raids = []
         async with self.bot.sql.acquire() as conn:
             async with conn.cursor() as cur:

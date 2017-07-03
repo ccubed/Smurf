@@ -68,6 +68,33 @@ async def whut(ctx, what: str):
         await ctx.send(result)
 
 
+@bot.command()
+async def timer(ctx, timestr: str, what: str):
+    """
+    Set a timer for so many hours in the future with a specific reminder text.
+
+    :param timestr: An indication of the time in the future to remind you. Use <number><unit> where unit can be h(ours), m(inutes), s(econds), d(ays).
+    :param what: Text of the reminder
+    """
+    if timestr[-1:] not in ['h', 'm', 's', 'd']:
+        await ctx.send(
+            "Make sure you specify your time in the format <number><unit> where unit is h,m,s,d for Hours, Minutes, Seconds and Day respectively.")
+        return
+
+    timeunit = {'h': 'hour', 'm': 'minute', 's': 'second', 'd': 'day'}
+    timeunit = timeunit[timestr[-1:]]
+
+    statement = "INSERT INTO Reminders (remind_at, guild_id, channel_id, reminder) VALUES (DATE_ADD(UTC_TIMESTAMP(), INTERVAL {} {}), '{}', '{}'. '{}')"
+    statement = statement.format(timestr[:-1], timeunit, ctx.guild.id, ctx.channel.id, what)
+
+    async with bot.sql.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(statement)
+            await conn.commit()
+
+    await ctx.send("I will remind you about {} in {} {}s {}.".format(what, timestr[:-1], timeunit, ctx.author.mention))
+
+
 @bot.event
 async def on_ready():
     pass

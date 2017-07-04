@@ -129,6 +129,10 @@ class Scheduler:
 
                     em = discord.Embed(title=raid[0][3], description="Details for this raid in {} follow.".format(raid[0][2]))
                     em.add_field(name="Scheduled For", value="{} {}".format(raid[0][5], datetime.timezone(datetime.timedelta(hours=raid[0][6])).tzname(None)))
+                    em.add_field(name="{} Party Needed".format(list(self.games[raid[0][2]].parties.keys())[raid[0][4]]),
+                                 value=", ".join(
+                                     ["{} {}".format(x, self.games[raid[0][2]].parties[raid[0][4]][x]) for x in self.games[raid[0][2]].parties[raid[0][4]]]
+                                 ))
                     if signups:
                         for role in set([x[1].lower() for x in signups]):
                             # Add primary

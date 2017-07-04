@@ -53,11 +53,13 @@ class Scheduler:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT timezone FROM Players WHERE id={}".format(ctx.author.id))
                 if cur.rowcount:
-                    offset = await cur.fetchone()[0]
+                    offset = await cur.fetchone()
+                    offset = offset[0]
                 else:
                     await cur.execute("SELECT timezone FROM Guilds WHERE id={}".format(ctx.guild.id))
                     if cur.rowcount:
-                        offset = await cur.fetchone()[0]
+                        offset = await cur.fetchone()
+                        offset = offset[0]
         if offset:
             # make our datetime objects
             initial = datetime.datetime(

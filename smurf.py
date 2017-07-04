@@ -12,7 +12,7 @@ settings = json.load(open('settings.json', 'r'))
 
 async def sql_setup(botto):
     botto.sql = await aiomysql.create_pool(
-        host="192.168.1.110", port=3306,
+        host="localhost", port=3306,
         user=settings['sql']['user'],
         password=settings['sql']['pass'],
         db=settings['sql']['dbname'],

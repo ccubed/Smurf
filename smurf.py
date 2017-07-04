@@ -19,6 +19,19 @@ async def sql_setup(botto):
         loop=botto.loop
     )
 
+async def check_timers():
+    async with bot.sql.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT UTC_TIMESTAMP()")
+            current_timestamp = await cur.fetchone()
+            current_timestamp = current_timestamp[0].strftime("%Y-%m-%d %H:%M:%S")
+            await cur.execute("SELECT channel_id, member_id, reminder FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
+            if cur.rowcount > 0:
+                notifications = await cur.fetchall()
+                for notify in notifications:
+                    await bot.get_channel(notify[0]).send("<@{}>! You asked me to remind you about: {}.".format(notify[1], notify[2]))
+                await cur.execute("DELETE FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
+                await conn.commit()
 
 @bot.command()
 async def load(ctx, what: str):
@@ -69,9 +82,10 @@ async def whut(ctx, what: str):
 
 
 @bot.command()
-async def timer(ctx, timestr: str, what: str):
+async def timer(ctx, timestr: str, *, what: str):
     """
-    Set a timer for so many hours in the future with a specific reminder text.
+    Set a timer to remind you about something in a specific amount of time in the future. Shortest possible time that can be given is 30 seconds.
+    This will remind you on the channel that you set the reminder in.
 
     :param timestr: An indication of the time in the future to remind you. Use <number><unit> where unit can be h(ours), m(inutes), s(econds), d(ays).
     :param what: Text of the reminder
@@ -81,11 +95,21 @@ async def timer(ctx, timestr: str, what: str):
             "Make sure you specify your time in the format <number><unit> where unit is h,m,s,d for Hours, Minutes, Seconds and Day respectively.")
         return
 
+    try:
+        int(timestr[:-1])
+    except ValueError:
+        await ctx.send("Needs to be a number.")
+        return
+
     timeunit = {'h': 'hour', 'm': 'minute', 's': 'second', 'd': 'day'}
     timeunit = timeunit[timestr[-1:]]
 
-    statement = "INSERT INTO Reminders (remind_at, guild_id, channel_id, reminder) VALUES (DATE_ADD(UTC_TIMESTAMP(), INTERVAL {} {}), '{}', '{}'. '{}')"
-    statement = statement.format(timestr[:-1], timeunit, ctx.guild.id, ctx.channel.id, what)
+    if timeunit == "second" and int(timestr[:-1]) < 30:
+        await ctx.send("Shortest possible interval is 30 seconds.")
+        return
+
+    statement = "INSERT INTO Reminders (remind_at, member_id, channel_id, reminder) VALUES (DATE_ADD(UTC_TIMESTAMP(), INTERVAL {} {}), '{}', '{}', '{}')"
+    statement = statement.format(timestr[:-1], timeunit, ctx.author.id, ctx.channel.id, what)
 
     async with bot.sql.acquire() as conn:
         async with conn.cursor() as cur:
@@ -97,7 +121,9 @@ async def timer(ctx, timestr: str, what: str):
 
 @bot.event
 async def on_ready():
-    pass
+    while not bot.is_closed():
+        await check_timers()
+        await asyncio.sleep(15)
 
 
 if __name__ == "__main__":

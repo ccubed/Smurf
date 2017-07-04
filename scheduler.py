@@ -109,37 +109,71 @@ class Scheduler:
                     await conn.commit()
 
     @commands.group(invoke_without_command=True)
-    async def raid(self, ctx):
+    async def raid(self, ctx, rid: int = None):
         """
         Display a list of currently scheduled raids for this guild.
         """
-        results = None
-        async with self.bot.sql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT * FROM Raids WHERE guild_id={} ORDER BY game".format(ctx.guild.id))
-                results = await cur.fetchall()
+        if rid:
+            async with self.bot.sql.acquire() as conn:
+                async with conn.cursor() as cur:
+                    raid, signups = None, None
+                    await cur.execute("SELECT * FROM Raids WHERE guild_id={} and id={}".format(ctx.guild.id, rid))
+                    if not cur.rowcount:
+                        await ctx.send("No raid found for that ID.")
+                        return
+                    raid = await cur.fetchone()
 
-        game_list = set([x[2] for x in results])
+                    await cur.execute("SELECT player_id, role, backup FROM Signups WHERE raid_id={}".format(rid))
+                    if cur.rowcount:
+                        signups = await cur.fetchall()
 
-        if not game_list:
-            await ctx.send("There are no raids scheduled for your guild.")
-            return
+                    em = discord.Embed(title=raid[0][3], description="Details for this raid in {} follow.".format(raid[0][2]))
+                    em.add_field(name="Scheduled For", value="{} {}".format(raid[0][5], datetime.timezone(datetime.timedelta(hours=raid[0][6])).tzname(None)))
+                    if signups:
+                        for role in set([x[1].lower() for x in signups]):
+                            # Add primary
+                            val = ""
+                            for person in [x for x in signups if not x[2] and x[1].lower() == role]:
+                                val += "{}\n".format(ctx.guild.get_member(x[0]).display_name)
+                            em.add_field(name=role, value=val or "None")
+                            # Add backups
+                            val = ""
+                            for person in [x for x in signups if x[2] and x[1].lower() == role]:
+                                val += "{}\n".format(ctx.guild.get_member(x[0]).display_name)
+                            em.add_field(name="Backup {}".format(role), value=val or "None")
+                            # Add ZWSP
+                            em.add_field(name="\u200b", value="\u200b")
+                    else:
+                        em.add_field(name="Signups", value="Currently there are no signups.")
+                    await ctx.send(embed=em)
+        else:
+            results = None
+            async with self.bot.sql.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("SELECT * FROM Raids WHERE guild_id={} ORDER BY game".format(ctx.guild.id))
+                    results = await cur.fetchall()
 
-        for game in game_list:
-            async with ctx.channel.typing():
-                rem = discord.Embed(title="{}".format(game), description="Raids and Events for your guild.")
-                for raid in [x for x in results if x[2] == game]:
-                    real_time = await self.calc_offset(raid[5], raid[6], ctx)
-                    rem.add_field(
-                        name=raid[3],
-                        value="Party Size: {}\nScheduled: {}\nFull: {}\nSignup: >>raid signup {} <role>".format(
-                            list(self.games[game].parties.keys())[raid[4]],
-                            real_time,
-                            "Yes" if raid[7] else "No",
-                            raid[0]
+            game_list = set([x[2] for x in results])
+
+            if not game_list:
+                await ctx.send("There are no raids scheduled for your guild.")
+                return
+
+            for game in game_list:
+                async with ctx.channel.typing():
+                    rem = discord.Embed(title="{}".format(game), description="Raids and Events for your guild.")
+                    for raid in [x for x in results if x[2] == game]:
+                        real_time = await self.calc_offset(raid[5], raid[6], ctx)
+                        rem.add_field(
+                            name=raid[3],
+                            value="Party Size: {}\nScheduled: {}\nFull: {}\nSignup: >>raid signup {} <role>".format(
+                                list(self.games[game].parties.keys())[raid[4]],
+                                real_time,
+                                "Yes" if raid[7] else "No",
+                                raid[0]
+                            )
                         )
-                    )
-                await ctx.send(embed=rem)
+                    await ctx.send(embed=rem)
 
     @raid.command()
     async def tz(self, ctx, offset: str):

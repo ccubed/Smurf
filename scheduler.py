@@ -127,7 +127,7 @@ class Scheduler:
                     if cur.rowcount:
                         signups = await cur.fetchall()
 
-                    party_type = list(self.games[raid[0][2]].parties.keys())[raid[0][4]]
+                    party_type = sorted(list(self.games[raid[0][2]].parties.keys()))[raid[0][4]]
                     em = discord.Embed(title=raid[0][3], description="Details for this raid in {} follow.".format(raid[0][2]))
                     em.add_field(name="Scheduled For", value="{} {}".format(raid[0][5], datetime.timezone(datetime.timedelta(hours=raid[0][6])).tzname(None)))
                     em.add_field(name="{} Party Needed".format(party_type),
@@ -172,7 +172,7 @@ class Scheduler:
                         rem.add_field(
                             name=raid[3],
                             value="Party Size: {}\nScheduled: {}\nFull: {}\nSignup: >>raid signup {} <role>".format(
-                                list(self.games[game].parties.keys())[raid[4]],
+                                sorted(list(self.games[game].parties.keys()))[raid[4]],
                                 real_time,
                                 "Yes" if raid[7] else "No",
                                 raid[0]

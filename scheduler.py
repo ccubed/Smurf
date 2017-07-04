@@ -132,7 +132,7 @@ class Scheduler:
                     em.add_field(name="Scheduled For", value="{} {}".format(raid[0][5], datetime.timezone(datetime.timedelta(hours=raid[0][6])).tzname(None)))
                     em.add_field(name="{} Party Needed".format(party_type),
                                  value=", ".join(
-                                     ["{} {}".format(x, self.games[raid[0][2]].parties[party_type][x]) for x in self.games[raid[0][2]].parties[party_type]]
+                                     ["{} {}".format(self.games[raid[0][2]].parties[party_type][x], x.upper()) for x in self.games[raid[0][2]].parties[party_type]]
                                  ))
                     if signups:
                         for role in set([x[1].lower() for x in signups]):
@@ -140,7 +140,7 @@ class Scheduler:
                             val = ""
                             for person in [x for x in signups if not x[2] and x[1].lower() == role]:
                                 val += "{}\n".format(ctx.guild.get_member(person[0]).display_name)
-                            em.add_field(name=role, value=val or "None")
+                            em.add_field(name=role.upper(), value=val or "None")
                             # Add ZWSP
                             em.add_field(name="\u200b", value="\u200b")
                             # Add backups

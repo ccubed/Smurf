@@ -73,6 +73,9 @@ async def status(ctx, what: str):
 @bot.command()
 async def whut(ctx, what: str):
     """eval some code"""
+    if not ctx.author.id == 66257033204080640:
+        return
+
     try:
         result = eval(what, globals(), locals())
     except BaseException as e:

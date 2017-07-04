@@ -88,7 +88,7 @@ class Ffxiv():
     @ff14.command()
     async def craft(self, ctx, what: str):
         """
-        Built in crafting helper. Given an item, will tell you what materials are needed to craft it.
+        Built in crafting helper. Given an item, will tell you the sum total of all items required to craft it yourself including items required for intermediate crafting recipes.
         """
         with aiohttp.ClientSession() as session:
             async with session.get("https://api.xivdb.com/search",

@@ -141,13 +141,13 @@ class Scheduler:
                             for person in [x for x in signups if not x[2] and x[1].lower() == role]:
                                 val += "{}\n".format(ctx.guild.get_member(person[0]).display_name)
                             em.add_field(name=role, value=val or "None")
+                            # Add ZWSP
+                            em.add_field(name="\u200b", value="\u200b")
                             # Add backups
                             val = ""
                             for person in [x for x in signups if x[2] and x[1].lower() == role]:
                                 val += "{}\n".format(ctx.guild.get_member(person[0]).display_name)
                             em.add_field(name="Backup {}".format(role), value=val or "None")
-                            # Add ZWSP
-                            em.add_field(name="\u200b", value="\u200b")
                     else:
                         em.add_field(name="Signups", value="Currently there are no signups.")
                     await ctx.send(embed=em)

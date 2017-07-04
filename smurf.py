@@ -6,7 +6,7 @@ from discord.ext import commands
 
 startup_extensions = ['ffxiv', 'scheduler']
 
-bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Raid management focused Discord bot.")
+bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Raid management focused Discord bot. See https://github.com/ccubed/Smurf")
 settings = json.load(open('settings.json', 'r'))
 
 

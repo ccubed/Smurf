@@ -121,7 +121,7 @@ class Scheduler:
                     if not cur.rowcount:
                         await ctx.send("No raid found for that ID.")
                         return
-                    raid = await cur.fetchone()
+                    raid = await cur.fetchall()
 
                     await cur.execute("SELECT player_id, role, backup FROM Signups WHERE raid_id={}".format(rid))
                     if cur.rowcount:

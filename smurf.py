@@ -70,7 +70,6 @@ async def kill(ctx):
 @bot.command()
 async def status(ctx, what: str):
     """Set status"""
-    await ctx.message.delete()
     if bot.is_ready():
         await bot.change_presence(game=discord.Game(name=what))
 

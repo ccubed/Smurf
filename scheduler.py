@@ -29,13 +29,8 @@ class Scheduler:
                                     await guild.get_member(person[0]).send(
                                         "You are signed up for {} in {} set for {} {}{}".format(raid[3], raid[2],
                                                                                                 raid[5],
-                                                                                                datetime.timezone(
-                                                                                                    datetime.timedelta(
-                                                                                                        hours=raid[
-                                                                                                            6])).tzname(
-                                                                                                    None),
-                                                                                                "as a backup." if
-                                                                                                person[3] else "."))
+                                                                                                datetime.timezone(datetime.timedelta(hours=raid[6])).tzname(None),
+                                                                                                "as a backup." if person[3] else "."))
                                     await cur.execute(
                                         "UPDATE Signups SET reminded = 1 WHERE player_id = {} AND raid_id = {}".format(
                                             person[0], raid[0]))
@@ -77,108 +72,16 @@ class Scheduler:
             return "{} {}".format(timestamp, datetime.timezone(datetime.timedelta(hours=timezone)).tzname(None))
 
     async def check_full(self, ctx, raid_info):
-        roles_needed = self.games[raid_info[2]].parties[
-            sorted(list(self.games[raid_info[2]].parties.keys()))[raid_info[4]]]
-        current_roles = []
-        async with self.bot.sql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT role FROM Signups WHERE raid_id = {}".format(raid_info[0]))
-                if cur.rowcount:
-                    current_roles = await cur.fetchall()
-
-        for rname in roles_needed.keys():
-            if len([x[0] for x in current_roles if x[0].lower() == rname]) < roles_needed[rname]:
-                return
-
-        async with self.bot.sql.acquire() as conn:
-            async with conn.cursor() as cur:
-                statement = "SELECT player_id, notify FROM Signups WHERE raid_id = {}".format(raid_info[0])
-                await cur.execute(statement)
-                people = await cur.fetchall()
-                for person in people:
-                    if not person[1]:
-                        await ctx.guild.get_member(person[0]).send(
-                            "This is a notice that a raid you had signed up for has a full party. Details follow.\n{} on {} {}".format(
-                                raid_info[3], raid_info[5],
-                                datetime.timezone(datetime.timedelta(hours=raid_info[6])).tzname(None)))
-                        await cur.execute("UPDATE Signups SET notify = 1 WHERE player_id = {}".format(person[0]))
-                        await conn.commit()
-                if not raid_info[7]:
-                    statement = "UPDATE Raids SET filled = 1 WHERE id = {}".format(raid_info[0])
-                    await cur.execute(statement)
-                    await conn.commit()
+        # All this shit needs to be rewritten
+        pass
 
     @commands.group(invoke_without_command=True)
     async def raid(self, ctx, rid: int = None):
         """
         Display a list of currently scheduled raids for this guild.
         """
-        if rid:
-            async with self.bot.sql.acquire() as conn:
-                async with conn.cursor() as cur:
-                    raid, signups = None, None
-                    await cur.execute("SELECT * FROM Raids WHERE guild_id={} and id={}".format(ctx.guild.id, rid))
-                    if not cur.rowcount:
-                        await ctx.send("No raid found for that ID.")
-                        return
-                    raid = await cur.fetchall()
-
-                    await cur.execute("SELECT player_id, role, backup FROM Signups WHERE raid_id={}".format(rid))
-                    if cur.rowcount:
-                        signups = await cur.fetchall()
-
-                    party_type = sorted(list(self.games[raid[0][2]].parties.keys()))[raid[0][4]]
-                    em = discord.Embed(title=raid[0][3], description="Details for this raid in {} follow.".format(raid[0][2]))
-                    em.add_field(name="Scheduled For", value="{} {}".format(raid[0][5], datetime.timezone(datetime.timedelta(hours=raid[0][6])).tzname(None)))
-                    em.add_field(name="{} Party Needed".format(party_type),
-                                 value=", ".join(
-                                     ["{} {}".format(self.games[raid[0][2]].parties[party_type][x], x.upper()) for x in self.games[raid[0][2]].parties[party_type]]
-                                 ))
-                    if signups:
-                        for role in set([x[1].lower() for x in signups]):
-                            # Add primary
-                            val = ""
-                            for person in [x for x in signups if not x[2] and x[1].lower() == role]:
-                                val += "{}\n".format(ctx.guild.get_member(person[0]).display_name)
-                            em.add_field(name=role.upper(), value=val or "None")
-                            # Add ZWSP
-                            em.add_field(name="\u200b", value="\u200b")
-                            # Add backups
-                            val = ""
-                            for person in [x for x in signups if x[2] and x[1].lower() == role]:
-                                val += "{}\n".format(ctx.guild.get_member(person[0]).display_name)
-                            em.add_field(name="Backup {}".format(role), value=val or "None")
-                    else:
-                        em.add_field(name="Signups", value="Currently there are no signups.")
-                    await ctx.send(embed=em)
-        else:
-            results = None
-            async with self.bot.sql.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("SELECT * FROM Raids WHERE guild_id={} ORDER BY game".format(ctx.guild.id))
-                    results = await cur.fetchall()
-
-            game_list = set([x[2] for x in results])
-
-            if not game_list:
-                await ctx.send("There are no raids scheduled for your guild.")
-                return
-
-            for game in game_list:
-                async with ctx.channel.typing():
-                    rem = discord.Embed(title="{}".format(game), description="Raids and Events for your guild.")
-                    for raid in [x for x in results if x[2] == game]:
-                        real_time = await self.calc_offset(raid[5], raid[6], ctx)
-                        rem.add_field(
-                            name=raid[3],
-                            value="Party Size: {}\nScheduled: {}\nFull: {}\nSignup: >>raid signup {} <role>".format(
-                                sorted(list(self.games[game].parties.keys()))[raid[4]],
-                                real_time,
-                                "Yes" if raid[7] else "No",
-                                raid[0]
-                            )
-                        )
-                    await ctx.send(embed=rem)
+        # and all this shit too, because of GW2
+        pass
 
     @raid.command()
     async def tz(self, ctx, offset: str):
@@ -293,7 +196,7 @@ class Scheduler:
             return
         else:
             if int(resp.content) <= len(self.games[game].parties.keys()):
-                party = int(resp.content)
+                party = sorted(list(self.games[game].parties.keys()))[int(resp.content)]
             else:
                 await ctx.send("That wasn't a valid ID.")
                 return
@@ -398,44 +301,7 @@ class Scheduler:
                 if cur.rowcount:
                     current_roles = await cur.fetchall()
 
-        if current_roles:
-            if (len([x[0] for x in current_roles if x[0].lower() == role.lower()]) + 1) <= \
-                    self.games[results[2]].parties[sorted(list(self.games[results[2]].parties.keys()))[results[4]]][
-                        role.lower()]:
-                async with self.bot.sql.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        statement = "INSERT INTO Signups (player_id, raid_id, role) VALUES ('{}', '{}', '{}')"
-                        statement = statement.format(ctx.author.id, rid, role.lower())
-                        await cur.execute(statement)
-                        await conn.commit()
-                        await ctx.send("Signed up {} for {} on {} {}".format(ctx.author.mention, results[3], results[5],
-                                                                             datetime.timezone(datetime.timedelta(
-                                                                                 hours=results[6])).tzname(None)))
-            else:
-                async with self.bot.sql.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        statement = "INSERT INTO Signups (player_id, raid_id, role, backup) VALUES ('{}', '{}', '{}', '{}')"
-                        statement = statement.format(ctx.author.id, rid, role.lower(), 1)
-                        await cur.execute(statement)
-                        await conn.commit()
-                        await ctx.send(
-                            "Signed up {} for {} on {} {} as a backup.".format(ctx.author.mention, results[3],
-                                                                               results[5],
-                                                                               datetime.timezone(datetime.timedelta(
-                                                                                   hours=results[6])).tzname(None)))
-        else:
-            async with self.bot.sql.acquire() as conn:
-                async with conn.cursor() as cur:
-                    statement = "INSERT INTO Signups (player_id, raid_id, role) VALUES ('{}', '{}', '{}')"
-                    statement = statement.format(ctx.author.id, rid, role.lower())
-                    await cur.execute(statement)
-                    await conn.commit()
-                    await ctx.send("Signed up {} for {} on {} {}".format(ctx.author.mention, results[3], results[5],
-                                                                         datetime.timezone(datetime.timedelta(
-                                                                             hours=results[6])).tzname(None)))
-
-        if current_roles:
-            await self.check_full(ctx, results)
+       # Rewrite for GW2/FFXIV
 
     @raid.command()
     async def withdraw(self, ctx):

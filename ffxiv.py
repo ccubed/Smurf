@@ -119,31 +119,6 @@ class Ffxiv():
                 else:
                     await ctx.send("Couldn't find a recipe with that search term.")
 
-    @ff14.command()
-    async def fc(self, ctx, name: str, server: str):
-        """
-        Set the name and server for the guild's FC. Need administrator or manage server role.
-        :param name: FC Name
-        :param server: FC Server
-        """
-        if not any([ctx.author.permissions_in(ctx.channel).administrator, ctx.author.permissions_in(ctx.channel).manage_guild]):
-            return
-
-        jsd = {'name': name, 'server': server}
-        jsd = json.dumps(jsd)
-
-        async with self.bot.sql.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT * FROM Guilds WHERE id = {}".format(ctx.guild.id))
-                if cur.rowcount:
-                    await cur.execute("UPDATE Guilds SET ffxiv = '{}' WHERE id = {}".format(jsd, ctx.guild.id))
-                    await conn.commit()
-                else:
-                    await cur.execute("INSERT INTO Guilds (id, ffxiv) VALUES ('{}', '{}')".format(ctx.guild.id, jsd))
-                    await conn.commit()
-
-        await ctx.send("Set your FC details.")
-
 
 def setup(bot):
     bot.add_cog(Ffxiv(bot))

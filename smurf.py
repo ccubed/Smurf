@@ -10,7 +10,7 @@ bot = commands.Bot(command_prefix=">>", description="Smurf is an MMORPG Guild/Ra
 settings = json.load(open('settings.json', 'r'))
 
 
-async def sql_setup(botto):
+async def _startup(botto):
     botto.sql = await aiomysql.create_pool(
         host="localhost", port=3306,
         user=settings['sql']['user'],
@@ -18,20 +18,24 @@ async def sql_setup(botto):
         db=settings['sql']['dbname'],
         loop=botto.loop
     )
+    await check_timers()
+
 
 async def check_timers():
-    async with bot.sql.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT UTC_TIMESTAMP()")
-            current_timestamp = await cur.fetchone()
-            current_timestamp = current_timestamp[0].strftime("%Y-%m-%d %H:%M:%S")
-            await cur.execute("SELECT channel_id, member_id, reminder FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
-            if cur.rowcount > 0:
-                notifications = await cur.fetchall()
-                for notify in notifications:
-                    await bot.get_channel(notify[0]).send("<@{}>! You asked me to remind you about: {}.".format(notify[1], notify[2]))
-                await cur.execute("DELETE FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
-                await conn.commit()
+    while not bot.is_closed():
+        async with bot.sql.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT UTC_TIMESTAMP()")
+                current_timestamp = await cur.fetchone()
+                current_timestamp = current_timestamp[0].strftime("%Y-%m-%d %H:%M:%S")
+                await cur.execute("SELECT channel_id, member_id, reminder FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
+                if cur.rowcount > 0:
+                    notifications = await cur.fetchall()
+                    for notify in notifications:
+                        await bot.get_channel(notify[0]).send("<@{}>! You asked me to remind you about: {}.".format(notify[1], notify[2]))
+                    await cur.execute("DELETE FROM Reminders WHERE remind_at <= '{}'".format(current_timestamp))
+                    await conn.commit()
+        await asyncio.sleep(15)
 
 @bot.command()
 async def load(ctx, what: str):
@@ -124,15 +128,13 @@ async def timer(ctx, timestr: str, *, what: str):
 
 @bot.event
 async def on_ready():
-    while not bot.is_closed():
-        await check_timers()
-        await asyncio.sleep(15)
+    pass
 
 
 if __name__ == "__main__":
     for ext in startup_extensions:
         bot.load_extension(ext)
 
-    bot.loop.run_until_complete(sql_setup(bot))
+    bot.loop.run_until_complete(_startup(bot))
 
     bot.run(settings['token'])

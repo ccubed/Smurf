@@ -18,10 +18,11 @@ async def _startup(botto):
         db=settings['sql']['dbname'],
         loop=botto.loop
     )
-    await check_timers()
+    bot.loop.create_task(check_timers())
 
 
 async def check_timers():
+    await bot.wait_until_ready()
     while not bot.is_closed():
         async with bot.sql.acquire() as conn:
             async with conn.cursor() as cur:
